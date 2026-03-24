@@ -490,6 +490,17 @@ app.get('/api/admin/stats', authMiddleware, adminMiddleware, async (req, res) =>
 
 app.get('/', (req, res) => res.json({ message: 'Barber Registro API v4.0' }));
 
+/* Catch-all: cualquier ruta que no sea /api ni un archivo estático
+   sirve el HTML correspondiente del frontend. Sin esto, navegar directo
+   a /login.html o /usuario.html en Render devuelve 404. */
+app.get('*.html', (req, res) => {
+  const file = path.basename(req.path);
+  res.sendFile(path.join(__dirname, '..', 'frontend', file), err => {
+    if (err) res.status(404).send('Página no encontrada');
+  });
+});
+
 
 app.listen(PORT, () => console.log(`\nBarber Registro API en http://localhost:${PORT}\n`));
+
 
