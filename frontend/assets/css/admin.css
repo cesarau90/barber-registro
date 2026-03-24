@@ -1,0 +1,230 @@
+/* ================================================================
+   admin.css — Estilos del panel de administración de la plataforma
+   ================================================================
+   Panel exclusivo del admin para gestionar todas las barberías
+   registradas en la plataforma. Incluye: login propio, dashboard
+   con estadísticas, listado de barberías con acciones (activar,
+   desactivar, editar, ver reservas).
+
+   Usa los mismos design tokens de styles.css para mantener
+   consistencia visual con el resto del sistema (C3).
+   ================================================================ */
+
+
+/* ── TOPBAR DEL ADMIN ────────────────────────────────────
+   Topbar con badge "ADMIN" y borde dorado para diferenciarlo
+   y borde inferior dorado para diferenciarlo visualmente.
+   ─────────────────────────────────────────────────────────── */
+.sa-topbar {
+    background: var(--ink-3);
+    color: var(--text);
+    padding: 16px 0;
+    border-bottom: 2px solid var(--gold-dim);
+}
+.sa-topbar-inner {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+.sa-topbar h1 {
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    font-family: 'Playfair Display', serif;
+}
+
+/* Badge dorado "ADMIN" junto al título */
+.sa-topbar .badge-sa {
+    background: var(--gold);
+    color: var(--ink);
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 700;
+    margin-left: 8px;
+}
+
+/* Botón de acción del admin (Salir) */
+.btn-sa {
+    background: rgba(255,255,255,0.12);
+    color: var(--text);
+    border: none;
+    padding: 8px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all var(--t);
+    font-family: 'DM Sans', sans-serif;
+}
+.btn-sa:hover { background: rgba(255,255,255,0.2); }
+
+
+/* ── STATS GRID ───────────────────────────────────────────────
+   Dashboard con 3 tarjetas de estadísticas:
+   total de barberías, activas y total de reservas.
+   ─────────────────────────────────────────────────────────── */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 32px;
+}
+.stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border-2);
+    border-radius: var(--radius-lg);
+    padding: 24px;
+    text-align: center;
+    transition: border-color var(--t), box-shadow var(--t);
+}
+.stat-card:hover {
+    border-color: var(--border);
+    box-shadow: var(--glow);
+}
+
+/* Número grande dorado (ej: "3") */
+.stat-card .num {
+    font-size: 40px;
+    font-weight: 800;
+    color: var(--gold);
+    font-family: 'Playfair Display', serif;
+    line-height: 1;
+}
+
+/* Label debajo del número (ej: "Barberías Registradas") */
+.stat-card .label {
+    font-size: 13px;
+    color: var(--text-3);
+    margin-top: 6px;
+    font-weight: 500;
+}
+
+
+/* ── BARBERÍA CARDS ───────────────────────────────────────────
+   Cada barbería registrada se muestra como una card con
+   info del dueño, estadísticas y botones de acción.
+   ─────────────────────────────────────────────────────────── */
+.barb-card {
+    background: var(--surface);
+    border: 1px solid var(--border-2);
+    border-radius: var(--radius-lg);
+    padding: 20px;
+    margin-bottom: 12px;
+    transition: border-color var(--t), box-shadow var(--t);
+}
+.barb-card:hover {
+    border-color: var(--border);
+    box-shadow: var(--shadow-lg);
+}
+.barb-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+.barb-info h3 {
+    font-size: 17px;
+    margin-bottom: 4px;
+    font-family: 'Playfair Display', serif;
+}
+
+/* Metadatos: ciudad, reservas, servicios, calificación */
+.barb-meta {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+    font-size: 13px;
+    color: var(--text-3);
+}
+.barb-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+
+/* ── TOGGLE BUTTONS (Activa/Inactiva) ─────────────────────────
+   Botones para activar o desactivar una barbería.
+   Verde para activa, rojo para inactiva, con colores del
+   sistema (--green, --red) en vez de colores hardcodeados.
+   ─────────────────────────────────────────────────────────── */
+.toggle-btn {
+    padding: 6px 14px;
+    border: none;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--t);
+    font-family: 'DM Sans', sans-serif;
+}
+.toggle-activa { background: rgba(62,207,142,0.15); color: var(--green); }
+.toggle-activa:hover { background: rgba(62,207,142,0.25); }
+.toggle-inactiva { background: rgba(224,82,82,0.15); color: var(--red); }
+.toggle-inactiva:hover { background: rgba(224,82,82,0.25); }
+
+
+/* ── PANEL DE DETALLES ────────────────────────────────────────
+   Panel expandible debajo de cada barbería card.
+   Se abre/cierra con JS al hacer click en "Detalles".
+   Contiene formulario de edición y tabla de reservas.
+   ─────────────────────────────────────────────────────────── */
+.detail-panel {
+    display: none;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border-2);
+}
+.detail-panel.open { display: block; }
+
+
+/* ── LOGIN DEL ADMIN ─────────────────────────────────────
+   Pantalla de login centrada, similar a login.html pero
+   sin la decoración de fondo (más austero).
+   ─────────────────────────────────────────────────────────── */
+.login-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    background: var(--ink);
+    padding: 20px;
+}
+.login-box { width: 100%; max-width: 400px; }
+.login-header {
+    text-align: center;
+    color: var(--text);
+    margin-bottom: 28px;
+}
+.login-header h1 {
+    font-size: 28px;
+    font-weight: 800;
+    font-family: 'Playfair Display', serif;
+}
+
+/* El panel se oculta hasta que el login sea exitoso */
+.panel-wrap { display: none; }
+
+
+/* ── RESPONSIVE ───────────────────────────────────────────── */
+@media (max-width: 640px) {
+    /* Stats pasan a 1 columna en móvil */
+    .stats-grid { grid-template-columns: 1fr; }
+
+    /* Topbar se apila verticalmente */
+    .sa-topbar-inner { flex-direction: column; align-items: flex-start; }
+
+    /* Acciones de cada barbería se apilan */
+    .barb-header { flex-direction: column; }
+    .barb-actions { width: 100%; }
+    .barb-actions button { flex: 1; justify-content: center; }
+
+    /* Formulario de edición en 1 columna */
+    .detail-panel [style*="grid-template-columns: 1fr 1fr"] {
+        grid-template-columns: 1fr !important;
+    }
+
+    /* Login box ocupa más ancho */
+    .login-box { max-width: 100%; }
+    .login-header h1 { font-size: 24px; }
+}
