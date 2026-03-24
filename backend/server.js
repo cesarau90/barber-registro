@@ -18,6 +18,7 @@
  *   almacenamiento excesivo y archivos ejecutables disfrazados
  */
 
+
 import express from 'express';
 import cors from 'cors';
 import pg from 'pg';
@@ -28,20 +29,30 @@ import { existsSync, mkdirSync, unlinkSync } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
+
 dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const uploadsDir = path.join(__dirname, 'uploads');
 if (!existsSync(uploadsDir)) mkdirSync(uploadsDir, { recursive: true });
 
+
 const { Pool } = pg;
 const app = express();
 const PORT = process.env.PORT || 3001;
 const JWT_SECRET = process.env.JWT_SECRET || 'cambiar';
 
+
 app.use(cors());
 app.use(express.json());
 app.use('/uploads', express.static(uploadsDir));
+
+/* Servir el frontend estático desde producción (Render).
+   En local se usa Live Server directamente, pero en Render
+   no hay Live Server, así que Express sirve los archivos HTML/CSS/JS
+   del frontend directamente desde la misma URL del servidor. */
+app.use(express.static(path.join(__dirname, '..', 'frontend')));
+
 
 const pool = new Pool({
   user: process.env.DB_USER, host: process.env.DB_HOST,
@@ -51,10 +62,12 @@ const pool = new Pool({
   ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false
 });
 
+
 pool.connect((err, client, release) => {
   if (err) console.error('Error DB:', err.message);
   else { console.log('DB conectada'); release(); }
 });
+
 
 // === HELPERS ===
 function validarCampos(campos, body) {
@@ -62,9 +75,11 @@ function validarCampos(campos, body) {
   return f.length > 0 ? `Faltan: ${f.join(', ')}` : null;
 }
 
+
 function generarToken(payload, expiresIn = '7d') {
   return jwt.sign(payload, JWT_SECRET, { expiresIn });
 }
+
 
 function authMiddleware(req, res, next) {
   const h = req.headers.authorization;
@@ -73,10 +88,12 @@ function authMiddleware(req, res, next) {
   catch { return res.status(401).json({ error: 'Sesion expirada' }); }
 }
 
+
 function adminMiddleware(req, res, next) {
   if (!req.user || req.user.role !== 'admin') return res.status(403).json({ error: 'Acceso denegado' });
   next();
 }
+
 
 // === AUTH DUENOS (usuarios dueños de barbería) ===
 app.post('/api/auth/registro', async (req, res) => {
@@ -84,6 +101,7 @@ app.post('/api/auth/registro', async (req, res) => {
   const err = validarCampos(['nombre','dueno_nombre','dueno_email','password','direccion','horarios'], req.body);
   if (err) return res.status(400).json({ error: err });
   if (password.length < 6) return res.status(400).json({ error: 'Contrasena minimo 6 caracteres' });
+
 
   try {
     const existe = await pool.query('SELECT id FROM barberias WHERE dueno_email = $1', [dueno_email.trim().toLowerCase()]);
@@ -101,6 +119,7 @@ app.post('/api/auth/registro', async (req, res) => {
   } catch (e) { console.error(e); res.status(500).json({ error: 'Error al registrar' }); }
 });
 
+
 app.post('/api/auth/login', async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) return res.status(400).json({ error: 'Email y contrasena requeridos' });
@@ -115,6 +134,7 @@ app.post('/api/auth/login', async (req, res) => {
   } catch (e) { res.status(500).json({ error: 'Error al iniciar sesion' }); }
 });
 
+
 app.get('/api/auth/verificar', authMiddleware, async (req, res) => {
   try {
     if (req.user.role === 'admin') {
@@ -125,6 +145,7 @@ app.get('/api/auth/verificar', authMiddleware, async (req, res) => {
     r.rows.length ? res.json({ barberia: r.rows[0], role: 'dueno' }) : res.status(401).json({ error: 'No encontrada' });
   } catch { res.status(500).json({ error: 'Error' }); }
 });
+
 
 // === AUTH ADMIN (administrador de la plataforma) ===
 app.post('/api/auth/admin/login', async (req, res) => {
@@ -139,6 +160,7 @@ app.post('/api/auth/admin/login', async (req, res) => {
   } catch { res.status(500).json({ error: 'Error' }); }
 });
 
+
 // === RUTAS PUBLICAS ===
 app.get('/api/barberias/:codigo', async (req, res) => {
   try {
@@ -146,6 +168,7 @@ app.get('/api/barberias/:codigo', async (req, res) => {
     r.rows.length ? res.json(r.rows[0]) : res.status(404).json({ error: 'No encontrada' });
   } catch { res.status(500).json({ error: 'Error' }); }
 });
+
 
 app.get('/api/barberias/:codigo/servicios', async (req, res) => {
   try {
@@ -160,12 +183,14 @@ app.get('/api/barberias/:codigo/servicios', async (req, res) => {
   } catch { res.status(500).json({ error: 'Error' }); }
 });
 
+
 app.get('/api/barberias/:codigo/resenas', async (req, res) => {
   try {
     const r = await pool.query('SELECT r.* FROM resenas r JOIN barberias b ON r.barberia_id=b.id WHERE b.codigo_unico=$1 AND r.visible=true ORDER BY r.created_at DESC LIMIT 10', [req.params.codigo]);
     res.json(r.rows);
   } catch { res.status(500).json({ error: 'Error' }); }
 });
+
 
 app.get('/api/barberias/:codigo/fotos', async (req, res) => {
   try {
@@ -176,19 +201,23 @@ app.get('/api/barberias/:codigo/fotos', async (req, res) => {
   } catch { res.status(500).json({ error: 'Error' }); }
 });
 
+
 // Crear reserva con validacion de horario
 app.post('/api/barberias/:codigo/reservas', async (req, res) => {
   const { nombre, email, telefono, fecha, hora, servicio, comentarios, es_cliente_recurrente } = req.body;
   const err = validarCampos(['nombre','email','telefono','fecha','hora','servicio'], req.body);
   if (err) return res.status(400).json({ error: err });
 
+
   try {
     const br = await pool.query('SELECT * FROM barberias WHERE codigo_unico=$1', [req.params.codigo]);
     if (!br.rows.length) return res.status(404).json({ error: 'No encontrada' });
     const barberia = br.rows[0];
 
+
     // Validar fecha pasada
     if (fecha < new Date().toISOString().split('T')[0]) return res.status(400).json({ error: 'No puedes reservar en fecha pasada' });
+
 
     // Validar horario
     if (barberia.horarios) {
@@ -209,9 +238,11 @@ app.post('/api/barberias/:codigo/reservas', async (req, res) => {
       }
     }
 
+
     // Duplicado
     const dup = await pool.query("SELECT id FROM reservas WHERE barberia_id=$1 AND fecha=$2 AND hora=$3 AND estado!='cancelada'", [barberia.id, fecha, hora]);
     if (dup.rows.length) return res.status(400).json({ error: 'Ya hay reserva en esa fecha y hora' });
+
 
     const r = await pool.query(
       'INSERT INTO reservas (barberia_id,nombre,email,telefono,fecha,hora,servicio,comentarios,es_cliente_recurrente) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *',
@@ -221,6 +252,7 @@ app.post('/api/barberias/:codigo/reservas', async (req, res) => {
       barberia_ciudad: barberia.ciudad, barberia_telefono: barberia.dueno_telefono, barberia_email: barberia.dueno_email, barberia_dueno: barberia.dueno_nombre });
   } catch (e) { console.error(e); res.status(500).json({ error: 'Error al crear reserva' }); }
 });
+
 
 app.post('/api/barberias/:codigo/resenas', async (req, res) => {
   const { cliente_nombre, comentario, calificacion } = req.body;
@@ -236,6 +268,7 @@ app.post('/api/barberias/:codigo/resenas', async (req, res) => {
   } catch { res.status(500).json({ error: 'Error' }); }
 });
 
+
 // === RUTAS DUENO (protegidas) ===
 app.get('/api/mi-barberia', authMiddleware, async (req, res) => {
   try {
@@ -243,6 +276,7 @@ app.get('/api/mi-barberia', authMiddleware, async (req, res) => {
     r.rows.length ? res.json(r.rows[0]) : res.status(404).json({ error: 'No encontrada' });
   } catch { res.status(500).json({ error: 'Error' }); }
 });
+
 
 app.put('/api/mi-barberia', authMiddleware, async (req, res) => {
   const { nombre, dueno_telefono, direccion, ciudad, horarios } = req.body;
@@ -255,6 +289,7 @@ app.put('/api/mi-barberia', authMiddleware, async (req, res) => {
   } catch { res.status(500).json({ error: 'Error' }); }
 });
 
+
 app.get('/api/mi-barberia/servicios', authMiddleware, async (req, res) => {
   try {
     const r = await pool.query(`
@@ -266,6 +301,7 @@ app.get('/api/mi-barberia/servicios', authMiddleware, async (req, res) => {
     res.json(rows);
   } catch { res.status(500).json({ error: 'Error' }); }
 });
+
 
 app.post('/api/mi-barberia/servicios', authMiddleware, async (req, res) => {
   const { nombre, descripcion, precio, duracion, icono } = req.body;
@@ -280,6 +316,7 @@ app.post('/api/mi-barberia/servicios', authMiddleware, async (req, res) => {
   }
 });
 
+
 /* Soft-delete (activo=false) en vez de DELETE real porque las reservas
    existentes referencian el nombre del servicio como texto. Borrar el
    servicio rompería el historial de reservas completadas. */
@@ -291,6 +328,7 @@ app.delete('/api/mi-barberia/servicios/:id', authMiddleware, async (req, res) =>
     res.json({ ok: true });
   } catch { res.status(500).json({ error: 'Error' }); }
 });
+
 
 // Vincular foto a servicio
 app.patch('/api/mi-barberia/servicios/:id/foto', authMiddleware, async (req, res) => {
@@ -305,10 +343,12 @@ app.patch('/api/mi-barberia/servicios/:id/foto', authMiddleware, async (req, res
   } catch { res.status(500).json({ error: 'Error' }); }
 });
 
+
 app.get('/api/mi-barberia/reservas', authMiddleware, async (req, res) => {
   try { res.json((await pool.query('SELECT * FROM reservas WHERE barberia_id=$1 ORDER BY fecha DESC, hora DESC', [req.user.id])).rows); }
   catch { res.status(500).json({ error: 'Error' }); }
 });
+
 
 app.patch('/api/mi-barberia/reservas/:id/estado', authMiddleware, async (req, res) => {
   const validos = ['pendiente','confirmada','cancelada','completada'];
@@ -321,6 +361,7 @@ app.patch('/api/mi-barberia/reservas/:id/estado', authMiddleware, async (req, re
   } catch { res.status(500).json({ error: 'Error' }); }
 });
 
+
 app.delete('/api/mi-barberia/reservas/:id', authMiddleware, async (req, res) => {
   try {
     const rv = await pool.query('SELECT barberia_id FROM reservas WHERE id=$1', [req.params.id]);
@@ -330,10 +371,12 @@ app.delete('/api/mi-barberia/reservas/:id', authMiddleware, async (req, res) => 
   } catch { res.status(500).json({ error: 'Error' }); }
 });
 
+
 app.get('/api/mi-barberia/resenas', authMiddleware, async (req, res) => {
   try { res.json((await pool.query('SELECT * FROM resenas WHERE barberia_id=$1 ORDER BY created_at DESC', [req.user.id])).rows); }
   catch { res.status(500).json({ error: 'Error' }); }
 });
+
 
 // Fotos dueno
 app.post('/api/mi-barberia/fotos', authMiddleware, async (req, res) => {
@@ -355,12 +398,14 @@ app.post('/api/mi-barberia/fotos', authMiddleware, async (req, res) => {
   });
 });
 
+
 app.get('/api/mi-barberia/fotos', authMiddleware, async (req, res) => {
   try {
     const r = await pool.query('SELECT * FROM fotos WHERE barberia_id=$1 ORDER BY created_at DESC', [req.user.id]);
     res.json(r.rows.map(f => ({ ...f, url: `/uploads/${req.user.id}/${f.filename}` })));
   } catch { res.status(500).json({ error: 'Error' }); }
 });
+
 
 app.delete('/api/mi-barberia/fotos/:id', authMiddleware, async (req, res) => {
   try {
@@ -373,11 +418,13 @@ app.delete('/api/mi-barberia/fotos/:id', authMiddleware, async (req, res) => {
   } catch { res.status(500).json({ error: 'Error' }); }
 });
 
+
 // === RUTAS ADMIN (administrador de la plataforma) ===
 app.get('/api/admin/barberias', authMiddleware, adminMiddleware, async (req, res) => {
   try { res.json((await pool.query('SELECT * FROM estadisticas_barberias ORDER BY created_at DESC')).rows); }
   catch { res.status(500).json({ error: 'Error' }); }
 });
+
 
 app.get('/api/admin/barberias/:id', authMiddleware, adminMiddleware, async (req, res) => {
   try {
@@ -385,6 +432,7 @@ app.get('/api/admin/barberias/:id', authMiddleware, adminMiddleware, async (req,
     r.rows.length ? res.json(r.rows[0]) : res.status(404).json({ error: 'No encontrada' });
   } catch { res.status(500).json({ error: 'Error' }); }
 });
+
 
 app.put('/api/admin/barberias/:id', authMiddleware, adminMiddleware, async (req, res) => {
   const { nombre, direccion, ciudad, horarios, activa, dueno_telefono } = req.body;
@@ -397,10 +445,12 @@ app.put('/api/admin/barberias/:id', authMiddleware, adminMiddleware, async (req,
   } catch { res.status(500).json({ error: 'Error' }); }
 });
 
+
 app.get('/api/admin/barberias/:id/reservas', authMiddleware, adminMiddleware, async (req, res) => {
   try { res.json((await pool.query('SELECT * FROM reservas WHERE barberia_id=$1 ORDER BY fecha DESC', [req.params.id])).rows); }
   catch { res.status(500).json({ error: 'Error' }); }
 });
+
 
 /* Admin puede cambiar el estado de cualquier reserva */
 app.patch('/api/admin/reservas/:id/estado', authMiddleware, adminMiddleware, async (req, res) => {
@@ -412,6 +462,7 @@ app.patch('/api/admin/reservas/:id/estado', authMiddleware, adminMiddleware, asy
   } catch { res.status(500).json({ error: 'Error' }); }
 });
 
+
 /* Admin puede eliminar cualquier reserva */
 app.delete('/api/admin/reservas/:id', authMiddleware, adminMiddleware, async (req, res) => {
   try {
@@ -420,10 +471,12 @@ app.delete('/api/admin/reservas/:id', authMiddleware, adminMiddleware, async (re
   } catch { res.status(500).json({ error: 'Error' }); }
 });
 
+
 app.get('/api/admin/barberias/:id/servicios', authMiddleware, adminMiddleware, async (req, res) => {
   try { res.json((await pool.query('SELECT * FROM servicios WHERE barberia_id=$1 AND activo=true ORDER BY id', [req.params.id])).rows); }
   catch { res.status(500).json({ error: 'Error' }); }
 });
+
 
 app.get('/api/admin/stats', authMiddleware, adminMiddleware, async (req, res) => {
   try {
@@ -434,6 +487,9 @@ app.get('/api/admin/stats', authMiddleware, adminMiddleware, async (req, res) =>
   } catch { res.status(500).json({ error: 'Error' }); }
 });
 
+
 app.get('/', (req, res) => res.json({ message: 'Barber Registro API v4.0' }));
 
+
 app.listen(PORT, () => console.log(`\nBarber Registro API en http://localhost:${PORT}\n`));
+
